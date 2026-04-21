@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/redis/go-redis/v9"
 )
 
 type Config struct {
@@ -25,6 +26,16 @@ type Config struct {
 
 func main() {
 	cfg := loadConfig()
+
+	redisClient, err := connectRedis(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		if err := redisClient.Close(); err != nil {
+			log.Println("redis close error:", err)
+		}
+	}()
 
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
@@ -79,6 +90,24 @@ func main() {
 	}
 }
 
+func connectRedis(cfg Config) (*redis.Client, error) {
+	client := redis.NewClient(&redis.Options{
+		Addr:     cfg.RedisAddr,
+		Password: cfg.RedisPassword,
+		DB:       cfg.RedisDB,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := client.Ping(ctx).Err(); err != nil {
+		_ = client.Close()
+		return nil, fmt.Errorf("ping redis: %w", err)
+	}
+
+	return client, nil
+}
+
 func loadConfig() Config {
 	return Config{
 		HTTPAddr:      envOrDefault("HTTP_ADDR", ":8080"),
@@ -113,7 +142,7 @@ func envIntOrDefault(key string, fallback int) int {
 
 func logStartup(cfg Config) {
 	fmt.Printf("HTTP server listening on http://localhost%s\n", cfg.HTTPAddr)
-	fmt.Printf("Redis target configured: %s (db=%d)\n", cfg.RedisAddr, cfg.RedisDB)
+	fmt.Printf("Redis connected: %s (db=%d)\n", cfg.RedisAddr, cfg.RedisDB)
 	fmt.Println("Available routes:")
 	fmt.Println("GET /")
 	fmt.Println("GET /healthz")
