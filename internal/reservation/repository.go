@@ -3,6 +3,7 @@ package reservation
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -41,6 +42,46 @@ func (r *RedisRepository) CreateReservation(ctx context.Context, reservation *Re
 
 	_, err := pipe.Exec(ctx)
 	return err
+}
+
+func (r *RedisRepository) GetReservation(ctx context.Context, id string) (*Reservation, error) {
+	key := reservationKey(id)
+	result, err := r.client.HGetAll(ctx, key).Result()
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(result) == 0 {
+		return nil, ErrReservationNotFound
+	}
+
+	quantity, err := strconv.Atoi(result["quantity"])
+	if err != nil {
+		return nil, fmt.Errorf("parse quantity: %w", err)
+	}
+
+	createdAt, err := time.Parse(time.RFC3339, result["created_at"])
+	if err != nil {
+		return nil, fmt.Errorf("parse created_at: %w", err)
+	}
+
+	expiresAt, err := time.Parse(time.RFC3339, result["expires_at"])
+	if err != nil {
+		return nil, fmt.Errorf("parse expires_at: %w", err)
+	}
+
+	reservation := &Reservation{
+		ID:         result["id"],
+		ResourceID: result["resource_id"],
+		UserID:     result["user_id"],
+		Quantity:   quantity,
+		Status:     Status(result["status"]),
+		CreatedAt:  createdAt,
+		ExpiresAt:  expiresAt,
+	}
+
+	return reservation, nil
 }
 
 func (r *RedisRepository) ConfirmReservation(ctx context.Context, id string) error {
