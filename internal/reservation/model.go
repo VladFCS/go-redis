@@ -7,7 +7,8 @@ const DefaultReservationTTL = 15 * time.Minute
 type Status string
 
 const (
-	StatusPending Status = "pending"
+	StatusPending   Status = "pending"
+	StatusConfirmed Status = "confirmed"
 )
 
 type Reservation struct {

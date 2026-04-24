@@ -2,15 +2,12 @@ package reservation
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 )
-
-var ErrInvalidReservation = errors.New("invalid reservation")
 
 type Service struct {
 	repository Repository
