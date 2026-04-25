@@ -12,7 +12,7 @@ import (
 type Repository interface {
 	CreateReservation(ctx context.Context, reservation *Reservation, ttl time.Duration) error
 	GetReservation(ctx context.Context, id string) (*Reservation, error)
-	ConfirmReservation(ctx context.Context, id string) error
+	ConfirmReservation(ctx context.Context, id string) (*Reservation, error)
 }
 
 type RedisRepository struct {
@@ -35,8 +35,10 @@ func (r *RedisRepository) CreateReservation(ctx context.Context, reservation *Re
 		"quantity":    reservation.Quantity,
 		"status":      reservation.Status,
 		"created_at":  reservation.CreatedAt.UTC().Format(time.RFC3339),
-		"expires_at":  reservation.ExpiresAt.UTC().Format(time.RFC3339),
 	})
+	if reservation.ExpiresAt != nil {
+		pipe.HSet(ctx, key, "expires_at", reservation.ExpiresAt.UTC().Format(time.RFC3339))
+	}
 
 	pipe.Expire(ctx, key, ttl)
 
@@ -56,6 +58,61 @@ func (r *RedisRepository) GetReservation(ctx context.Context, id string) (*Reser
 		return nil, ErrReservationNotFound
 	}
 
+	return reservationFromHash(result)
+}
+
+func (r *RedisRepository) ConfirmReservation(ctx context.Context, id string) (*Reservation, error) {
+	key := reservationKey(id)
+
+	for range 3 {
+		var confirmedReservation *Reservation
+
+		err := r.client.Watch(ctx, func(tx *redis.Tx) error {
+			result, err := tx.HGetAll(ctx, key).Result()
+			if err != nil {
+				return err
+			}
+
+			if len(result) == 0 {
+				return ErrReservationNotFound
+			}
+
+			reservation, err := reservationFromHash(result)
+			if err != nil {
+				return err
+			}
+
+			if reservation.Status != StatusPending {
+				return fmt.Errorf("cannot confirm reservation with status %s", reservation.Status)
+			}
+
+			_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
+				pipe.HSet(ctx, key, "status", StatusConfirmed)
+				pipe.HDel(ctx, key, "expires_at")
+				pipe.Persist(ctx, key)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+
+			reservation.Status = StatusConfirmed
+			reservation.ExpiresAt = nil
+			confirmedReservation = reservation
+
+			return nil
+		}, key)
+		if err == redis.TxFailedErr {
+			continue
+		}
+
+		return confirmedReservation, err
+	}
+
+	return nil, redis.TxFailedErr
+}
+
+func reservationFromHash(result map[string]string) (*Reservation, error) {
 	quantity, err := strconv.Atoi(result["quantity"])
 	if err != nil {
 		return nil, fmt.Errorf("parse quantity: %w", err)
@@ -66,9 +123,13 @@ func (r *RedisRepository) GetReservation(ctx context.Context, id string) (*Reser
 		return nil, fmt.Errorf("parse created_at: %w", err)
 	}
 
-	expiresAt, err := time.Parse(time.RFC3339, result["expires_at"])
-	if err != nil {
-		return nil, fmt.Errorf("parse expires_at: %w", err)
+	var expiresAt *time.Time
+	if value := result["expires_at"]; value != "" {
+		parsedExpiresAt, err := time.Parse(time.RFC3339, value)
+		if err != nil {
+			return nil, fmt.Errorf("parse expires_at: %w", err)
+		}
+		expiresAt = &parsedExpiresAt
 	}
 
 	reservation := &Reservation{
@@ -82,43 +143,4 @@ func (r *RedisRepository) GetReservation(ctx context.Context, id string) (*Reser
 	}
 
 	return reservation, nil
-}
-
-func (r *RedisRepository) ConfirmReservation(ctx context.Context, id string) error {
-	key := reservationKey(id)
-
-	for range 3 {
-		err := r.client.Watch(ctx, func(tx *redis.Tx) error {
-			result, err := tx.HGetAll(ctx, key).Result()
-			if err != nil {
-				return err
-			}
-
-			if len(result) == 0 {
-				return ErrReservationNotFound
-			}
-
-			status := Status(result["status"])
-			if status != StatusPending {
-				return fmt.Errorf("cannot confirm reservation with status %s", status)
-			}
-
-			_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
-				pipe.HSet(ctx, key, map[string]any{
-					"status": StatusConfirmed,
-				})
-				pipe.Persist(ctx, key)
-				return nil
-			})
-
-			return err
-		}, key)
-		if err == redis.TxFailedErr {
-			continue
-		}
-
-		return err
-	}
-
-	return redis.TxFailedErr
 }

@@ -23,6 +23,7 @@ func (s *Service) CreateReservation(ctx context.Context, req CreateReservationRe
 	}
 
 	now := time.Now().UTC()
+	expiresAt := now.Add(DefaultReservationTTL)
 
 	reservation := &Reservation{
 		ID:         uuid.NewString(),
@@ -31,7 +32,7 @@ func (s *Service) CreateReservation(ctx context.Context, req CreateReservationRe
 		Quantity:   req.Quantity,
 		Status:     StatusPending,
 		CreatedAt:  now,
-		ExpiresAt:  now.Add(DefaultReservationTTL),
+		ExpiresAt:  &expiresAt,
 	}
 
 	if err := s.repository.CreateReservation(ctx, reservation, DefaultReservationTTL); err != nil {
@@ -39,6 +40,10 @@ func (s *Service) CreateReservation(ctx context.Context, req CreateReservationRe
 	}
 
 	return reservation, nil
+}
+
+func (s *Service) ConfirmReservation(ctx context.Context, reservationID string) (*Reservation, error) {
+	return s.repository.ConfirmReservation(ctx, reservationID)
 }
 
 func validateCreateReservationRequest(req CreateReservationRequest) error {

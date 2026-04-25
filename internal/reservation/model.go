@@ -12,13 +12,13 @@ const (
 )
 
 type Reservation struct {
-	ID         string    `json:"id"`
-	ResourceID string    `json:"resource_id"`
-	UserID     string    `json:"user_id"`
-	Quantity   int       `json:"quantity"`
-	Status     Status    `json:"status"`
-	CreatedAt  time.Time `json:"created_at"`
-	ExpiresAt  time.Time `json:"expires_at"`
+	ID         string     `json:"id"`
+	ResourceID string     `json:"resource_id"`
+	UserID     string     `json:"user_id"`
+	Quantity   int        `json:"quantity"`
+	Status     Status     `json:"status"`
+	CreatedAt  time.Time  `json:"created_at"`
+	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
 }
 
 type CreateReservationRequest struct {
