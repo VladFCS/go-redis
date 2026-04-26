@@ -42,8 +42,18 @@ func (s *Service) CreateReservation(ctx context.Context, req CreateReservationRe
 	return reservation, nil
 }
 
+func (s *Service) GetReservation(ctx context.Context, reservationID string) (*Reservation, error) {
+	reservationID = strings.TrimSpace(reservationID)
+	if reservationID == "" {
+		return nil, fmt.Errorf("%w: reservation_id is required", ErrInvalidReservation)
+	}
+
+	return s.repository.GetReservation(ctx, reservationID)
+}
+
 func (s *Service) ConfirmReservation(ctx context.Context, reservationID string) (*Reservation, error) {
-	if strings.TrimSpace(reservationID) == "" {
+	reservationID = strings.TrimSpace(reservationID)
+	if reservationID == "" {
 		return nil, fmt.Errorf("%w: reservation_id is required", ErrInvalidReservation)
 	}
 	return s.repository.ConfirmReservation(ctx, reservationID)
