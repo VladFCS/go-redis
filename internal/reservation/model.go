@@ -26,3 +26,8 @@ type CreateReservationRequest struct {
 	UserID     string `json:"user_id"`
 	Quantity   int    `json:"quantity"`
 }
+
+type ConfirmReservationRequest struct {
+	ResourceID string `json:"resource_id"`
+	UserID 	 string `json:"user_id"`
+}

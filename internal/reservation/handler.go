@@ -23,6 +23,7 @@ func (h *Handler) Routes() http.Handler {
 
 	router.Route("/reservations", func(r chi.Router) {
 		r.Post("/", h.CreateReservation)
+		r.Post("/{id}/confirm", h.ConfirmReservation)
 	})
 
 	return router
@@ -54,9 +55,42 @@ func (h *Handler) CreateReservation(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, reservation)
 }
 
+func (h *Handler) ConfirmReservation(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		_ = r.Body.Close()
+	}()
+
+	reservationID := chi.URLParam(r, "id")
+	if reservationID == "" {
+		writeError(w, http.StatusBadRequest, "reservation_id is required")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	confirmReservation, err := h.service.ConfirmReservation(ctx, reservationID)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, confirmReservation)
+}
+ 
 func writeServiceError(w http.ResponseWriter, err error) {
 	if errors.Is(err, ErrInvalidReservation) {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if errors.Is(err, ErrReservationNotFound) {
+		writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	if errors.Is(err, ErrReservationConflict) {
+		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
 

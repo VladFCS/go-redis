@@ -83,7 +83,7 @@ func (r *RedisRepository) ConfirmReservation(ctx context.Context, id string) (*R
 			}
 
 			if reservation.Status != StatusPending {
-				return fmt.Errorf("cannot confirm reservation with status %s", reservation.Status)
+				return fmt.Errorf("%w: cannot confirm reservation with status %s", ErrReservationConflict, reservation.Status)
 			}
 
 			_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
