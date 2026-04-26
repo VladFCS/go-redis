@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/vladfc/go-redis/internal/reservation"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -53,6 +54,12 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
+
+	reservationRepository := reservation.NewRedisRepository(redisClient)
+	reservationService := reservation.NewService(reservationRepository)
+	reservationHandler := reservation.NewHandler(reservationService)
+
+	router.Mount("/", reservationHandler.Routes())
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
@@ -146,4 +153,6 @@ func logStartup(cfg Config) {
 	fmt.Println("Available routes:")
 	fmt.Println("GET /")
 	fmt.Println("GET /healthz")
+	fmt.Println("POST /reservations/")
+	fmt.Println("POST /reservations/{id}/confirm")
 }
