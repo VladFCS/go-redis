@@ -10,10 +10,10 @@ import (
 )
 
 type ReservationService struct {
-	repository Repository
+	repository ReservationRepository
 }
 
-func NewReservationService(repository Repository) *ReservationService {
+func NewReservationService(repository ReservationRepository) *ReservationService {
 	return &ReservationService{repository: repository}
 }
 
@@ -26,13 +26,13 @@ func (s *ReservationService) CreateReservation(ctx context.Context, req CreateRe
 	expiresAt := now.Add(DefaultReservationTTL)
 
 	reservation := &Reservation{
-		ID:         uuid.NewString(),
-		ResourceID: strings.TrimSpace(req.ResourceID),
-		UserID:     strings.TrimSpace(req.UserID),
-		Quantity:   req.Quantity,
-		Status:     ReservationStatusPending,
-		CreatedAt:  now,
-		ExpiresAt:  &expiresAt,
+		ID:        uuid.NewString(),
+		RoomID:    strings.TrimSpace(req.RoomID),
+		UserID:    strings.TrimSpace(req.UserID),
+		Quantity:  req.Quantity,
+		Status:    ReservationStatusPending,
+		CreatedAt: now,
+		ExpiresAt: &expiresAt,
 	}
 
 	if err := s.repository.CreateReservation(ctx, reservation, DefaultReservationTTL); err != nil {
@@ -60,8 +60,8 @@ func (s *ReservationService) ConfirmReservation(ctx context.Context, reservation
 }
 
 func validateReservationCreateRequest(req CreateReservationRequest) error {
-	if strings.TrimSpace(req.ResourceID) == "" {
-		return fmt.Errorf("%w: resource_id is required", ErrInvalidReservation)
+	if strings.TrimSpace(req.RoomID) == "" {
+		return fmt.Errorf("%w: room_id is required", ErrInvalidReservation)
 	}
 
 	if strings.TrimSpace(req.UserID) == "" {

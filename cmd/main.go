@@ -55,7 +55,7 @@ func main() {
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	reservationRepository := reservation.NewRedisRepository(redisClient)
+	reservationRepository := reservation.NewRedisReservationRepository(redisClient)
 	reservationService := reservation.NewReservationService(reservationRepository)
 	reservationHandler := reservation.NewHandler(reservationService)
 

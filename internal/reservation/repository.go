@@ -9,32 +9,32 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type Repository interface {
+type ReservationRepository interface {
 	CreateReservation(ctx context.Context, reservation *Reservation, ttl time.Duration) error
 	GetReservation(ctx context.Context, id string) (*Reservation, error)
 	ConfirmReservation(ctx context.Context, id string) (*Reservation, error)
 }
 
-type RedisRepository struct {
+type RedisReservationRepository struct {
 	client *redis.Client
 }
 
-func NewRedisRepository(client *redis.Client) *RedisRepository {
-	return &RedisRepository{client: client}
+func NewRedisReservationRepository(client *redis.Client) *RedisReservationRepository {
+	return &RedisReservationRepository{client: client}
 }
 
-func (r *RedisRepository) CreateReservation(ctx context.Context, reservation *Reservation, ttl time.Duration) error {
+func (r *RedisReservationRepository) CreateReservation(ctx context.Context, reservation *Reservation, ttl time.Duration) error {
 	key := reservationKey(reservation.ID)
 
 	pipe := r.client.TxPipeline()
 
 	pipe.HSet(ctx, key, map[string]any{
-		"id":          reservation.ID,
-		"resource_id": reservation.ResourceID,
-		"user_id":     reservation.UserID,
-		"quantity":    reservation.Quantity,
-		"status":      reservation.Status,
-		"created_at":  reservation.CreatedAt.UTC().Format(time.RFC3339),
+		"id":         reservation.ID,
+		"room_id":    reservation.RoomID,
+		"user_id":    reservation.UserID,
+		"quantity":   reservation.Quantity,
+		"status":     reservation.Status,
+		"created_at": reservation.CreatedAt.UTC().Format(time.RFC3339),
 	})
 	if reservation.ExpiresAt != nil {
 		pipe.HSet(ctx, key, "expires_at", reservation.ExpiresAt.UTC().Format(time.RFC3339))
@@ -46,7 +46,7 @@ func (r *RedisRepository) CreateReservation(ctx context.Context, reservation *Re
 	return err
 }
 
-func (r *RedisRepository) GetReservation(ctx context.Context, id string) (*Reservation, error) {
+func (r *RedisReservationRepository) GetReservation(ctx context.Context, id string) (*Reservation, error) {
 	key := reservationKey(id)
 	result, err := r.client.HGetAll(ctx, key).Result()
 
@@ -61,7 +61,7 @@ func (r *RedisRepository) GetReservation(ctx context.Context, id string) (*Reser
 	return reservationFromHash(result)
 }
 
-func (r *RedisRepository) ConfirmReservation(ctx context.Context, id string) (*Reservation, error) {
+func (r *RedisReservationRepository) ConfirmReservation(ctx context.Context, id string) (*Reservation, error) {
 	key := reservationKey(id)
 
 	for range 3 {
@@ -133,13 +133,13 @@ func reservationFromHash(result map[string]string) (*Reservation, error) {
 	}
 
 	reservation := &Reservation{
-		ID:         result["id"],
-		ResourceID: result["resource_id"],
-		UserID:     result["user_id"],
-		Quantity:   quantity,
-		Status:     ReservationStatus(result["status"]),
-		CreatedAt:  createdAt,
-		ExpiresAt:  expiresAt,
+		ID:        result["id"],
+		RoomID:    result["room_id"],
+		UserID:    result["user_id"],
+		Quantity:  quantity,
+		Status:    ReservationStatus(result["status"]),
+		CreatedAt: createdAt,
+		ExpiresAt: expiresAt,
 	}
 
 	return reservation, nil
