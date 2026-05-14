@@ -8,10 +8,10 @@ const (
 )
 
 type Room struct {
-	ID         string
-	RoomNumber string
-	Status     RoomStatus
-	Capacity   int
+	ID         string     `json:"id"`
+	RoomNumber string     `json:"room_number"`
+	Status     RoomStatus `json:"status"`
+	Capacity   int        `json:"capacity"`
 }
 
 type CreateRoomRequest struct {

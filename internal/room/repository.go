@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	roompostgres "github.com/vladfc/go-redis/internal/room/postgres"
 )
 
@@ -27,12 +28,22 @@ func NewPostgreSQLRepository(client *sql.DB) *PostgreSQLRepository {
 }
 
 func (r *PostgreSQLRepository) CreateRoom(ctx context.Context, room *Room) error {
-	return r.query.CreateRoom(ctx, roompostgres.CreateRoomParams{
+	err := r.query.CreateRoom(ctx, roompostgres.CreateRoomParams{
 		ID:         room.ID,
 		RoomNumber: room.RoomNumber,
 		Status:     string(room.Status),
 		Capacity:   int32(room.Capacity),
 	})
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return ErrRoomConflict
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 func (r *PostgreSQLRepository) GetRooms(ctx context.Context) ([]*Room, error) {
