@@ -4,21 +4,21 @@ import "time"
 
 const DefaultReservationTTL = 15 * time.Minute
 
-type Status string
+type ReservationStatus string
 
 const (
-	StatusPending   Status = "pending"
-	StatusConfirmed Status = "confirmed"
+	ReservationStatusPending   ReservationStatus = "pending"
+	ReservationStatusConfirmed ReservationStatus = "confirmed"
 )
 
 type Reservation struct {
-	ID         string     `json:"id"`
-	ResourceID string     `json:"resource_id"`
-	UserID     string     `json:"user_id"`
-	Quantity   int        `json:"quantity"`
-	Status     Status     `json:"status"`
-	CreatedAt  time.Time  `json:"created_at"`
-	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
+	ID         string            `json:"id"`
+	ResourceID string            `json:"resource_id"`
+	UserID     string            `json:"user_id"`
+	Quantity   int               `json:"quantity"`
+	Status     ReservationStatus `json:"status"`
+	CreatedAt  time.Time         `json:"created_at"`
+	ExpiresAt  *time.Time        `json:"expires_at,omitempty"`
 }
 
 type CreateReservationRequest struct {
@@ -29,5 +29,5 @@ type CreateReservationRequest struct {
 
 type ConfirmReservationRequest struct {
 	ResourceID string `json:"resource_id"`
-	UserID 	 string `json:"user_id"`
+	UserID     string `json:"user_id"`
 }

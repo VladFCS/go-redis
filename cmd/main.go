@@ -14,8 +14,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/vladfc/go-redis/internal/reservation"
 	"github.com/redis/go-redis/v9"
+	"github.com/vladfc/go-redis/internal/reservation"
 )
 
 type Config struct {
@@ -56,7 +56,7 @@ func main() {
 	})
 
 	reservationRepository := reservation.NewRedisRepository(redisClient)
-	reservationService := reservation.NewService(reservationRepository)
+	reservationService := reservation.NewReservationService(reservationRepository)
 	reservationHandler := reservation.NewHandler(reservationService)
 
 	router.Mount("/", reservationHandler.Routes())

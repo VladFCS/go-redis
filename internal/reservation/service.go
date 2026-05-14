@@ -9,16 +9,16 @@ import (
 	"github.com/google/uuid"
 )
 
-type Service struct {
+type ReservationService struct {
 	repository Repository
 }
 
-func NewService(repository Repository) *Service {
-	return &Service{repository: repository}
+func NewReservationService(repository Repository) *ReservationService {
+	return &ReservationService{repository: repository}
 }
 
-func (s *Service) CreateReservation(ctx context.Context, req CreateReservationRequest) (*Reservation, error) {
-	if err := validateCreateReservationRequest(req); err != nil {
+func (s *ReservationService) CreateReservation(ctx context.Context, req CreateReservationRequest) (*Reservation, error) {
+	if err := validateReservationCreateRequest(req); err != nil {
 		return nil, err
 	}
 
@@ -30,7 +30,7 @@ func (s *Service) CreateReservation(ctx context.Context, req CreateReservationRe
 		ResourceID: strings.TrimSpace(req.ResourceID),
 		UserID:     strings.TrimSpace(req.UserID),
 		Quantity:   req.Quantity,
-		Status:     StatusPending,
+		Status:     ReservationStatusPending,
 		CreatedAt:  now,
 		ExpiresAt:  &expiresAt,
 	}
@@ -42,7 +42,7 @@ func (s *Service) CreateReservation(ctx context.Context, req CreateReservationRe
 	return reservation, nil
 }
 
-func (s *Service) GetReservation(ctx context.Context, reservationID string) (*Reservation, error) {
+func (s *ReservationService) GetReservation(ctx context.Context, reservationID string) (*Reservation, error) {
 	reservationID = strings.TrimSpace(reservationID)
 	if reservationID == "" {
 		return nil, fmt.Errorf("%w: reservation_id is required", ErrInvalidReservation)
@@ -51,7 +51,7 @@ func (s *Service) GetReservation(ctx context.Context, reservationID string) (*Re
 	return s.repository.GetReservation(ctx, reservationID)
 }
 
-func (s *Service) ConfirmReservation(ctx context.Context, reservationID string) (*Reservation, error) {
+func (s *ReservationService) ConfirmReservation(ctx context.Context, reservationID string) (*Reservation, error) {
 	reservationID = strings.TrimSpace(reservationID)
 	if reservationID == "" {
 		return nil, fmt.Errorf("%w: reservation_id is required", ErrInvalidReservation)
@@ -59,7 +59,7 @@ func (s *Service) ConfirmReservation(ctx context.Context, reservationID string) 
 	return s.repository.ConfirmReservation(ctx, reservationID)
 }
 
-func validateCreateReservationRequest(req CreateReservationRequest) error {
+func validateReservationCreateRequest(req CreateReservationRequest) error {
 	if strings.TrimSpace(req.ResourceID) == "" {
 		return fmt.Errorf("%w: resource_id is required", ErrInvalidReservation)
 	}

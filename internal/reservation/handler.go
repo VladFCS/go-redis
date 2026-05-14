@@ -11,10 +11,10 @@ import (
 )
 
 type Handler struct {
-	service *Service
+	service *ReservationService
 }
 
-func NewHandler(service *Service) *Handler {
+func NewHandler(service *ReservationService) *Handler {
 	return &Handler{service: service}
 }
 
@@ -101,7 +101,7 @@ func (h *Handler) GetReservation(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, reservation)
 }
- 
+
 func writeServiceError(w http.ResponseWriter, err error) {
 	if errors.Is(err, ErrInvalidReservation) {
 		writeError(w, http.StatusBadRequest, err.Error())

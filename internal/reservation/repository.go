@@ -82,12 +82,12 @@ func (r *RedisRepository) ConfirmReservation(ctx context.Context, id string) (*R
 				return err
 			}
 
-			if reservation.Status != StatusPending {
+			if reservation.Status != ReservationStatusPending {
 				return fmt.Errorf("%w: cannot confirm reservation with status %s", ErrReservationConflict, reservation.Status)
 			}
 
 			_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
-				pipe.HSet(ctx, key, "status", StatusConfirmed)
+				pipe.HSet(ctx, key, "status", ReservationStatusConfirmed)
 				pipe.HDel(ctx, key, "expires_at")
 				pipe.Persist(ctx, key)
 				return nil
@@ -96,7 +96,7 @@ func (r *RedisRepository) ConfirmReservation(ctx context.Context, id string) (*R
 				return err
 			}
 
-			reservation.Status = StatusConfirmed
+			reservation.Status = ReservationStatusConfirmed
 			reservation.ExpiresAt = nil
 			confirmedReservation = reservation
 
@@ -137,7 +137,7 @@ func reservationFromHash(result map[string]string) (*Reservation, error) {
 		ResourceID: result["resource_id"],
 		UserID:     result["user_id"],
 		Quantity:   quantity,
-		Status:     Status(result["status"]),
+		Status:     ReservationStatus(result["status"]),
 		CreatedAt:  createdAt,
 		ExpiresAt:  expiresAt,
 	}
