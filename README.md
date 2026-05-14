@@ -5,8 +5,13 @@ This project is a learning-focused Go + Redis backend example built with:
 - `net/http`
 - `chi`
 - Redis
+- PostgreSQL for room storage
+- `sqlc` for typed SQL queries
 
-The goal of the project is to practice Redis-backed backend design in Go through one realistic domain entity. We will use `reservation` as the main entity because it fits Redis well: TTL, atomic updates, idempotency, counters, and event-style workflows are all natural next steps.
+The goal of the project is to practice Redis-backed backend design in Go through one realistic domain entity. We use:
+
+- `room` as stable business data in PostgreSQL
+- `reservation` as TTL-sensitive operational state in Redis
 
 ## Current stage
 
@@ -19,7 +24,10 @@ The repository is currently bootstrapped with:
 - `docker-compose.yml` for local Redis
 - `/healthz` endpoint for a quick smoke test
 
-At this stage, Redis is configured but not yet used by application code. The next step is to add the first `reservation` feature and wire the Redis client into the service layer.
+At this stage:
+
+- Redis is used for reservation state
+- PostgreSQL schema and `sqlc` scaffolding are prepared for room storage
 
 ## Project structure
 
@@ -27,6 +35,9 @@ At this stage, Redis is configured but not yet used by application code. The nex
 .
 ├── cmd
 │   └── main.go
+├── db
+│   ├── migrations
+│   └── query
 ├── docker-compose.yml
 ├── go.mod
 └── README.md
@@ -58,6 +69,36 @@ docker compose up -d
 ```
 
 Redis will be available at `localhost:6379`.
+PostgreSQL will be available at `localhost:5432`.
+
+Default PostgreSQL credentials:
+
+- database: `go_redis`
+- user: `postgres`
+- password: `postgres`
+
+## Run the first migration
+
+Apply [000001_create_rooms.up.sql](/Users/vlad/MySpace/Code/golang/go-redis/db/migrations/000001_create_rooms.up.sql:1) against your local PostgreSQL instance with your preferred migration tool or `psql`.
+
+Example:
+
+```bash
+psql postgresql://postgres:postgres@localhost:5432/go_redis -f db/migrations/000001_create_rooms.up.sql
+```
+
+## Generate room queries with sqlc
+
+```bash
+sqlc generate
+```
+
+This reads:
+
+- schema from `db/migrations/`
+- queries from `db/query/`
+
+and generates typed Go code into `internal/room/postgres/`.
 
 ## Run the API
 
