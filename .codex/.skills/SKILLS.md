@@ -1,6 +1,6 @@
 # Skills
 
 ## go-redis-mentoring
-path: .codex/.skills/mentoring
-when: learning Redis, solving backend tasks, needing guidance instead of full solutions
-does: acts as a senior Go + Redis mentor — explains concepts, gives tasks, provides hints, reviews code without writing full implementations by default
+- path: ./go-redis/SKILL.md
+- description: Go + Redis learning mode. Teaches Redis patterns in Go, gives backend exercises, reviews code, and prefers hints over full solutions.
+å
