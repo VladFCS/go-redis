@@ -74,7 +74,8 @@ func main() {
 	reservationHandler := reservation.NewHandler(reservationService)
 
 	roomRepository := room.NewPostgreSQLRepository(postgresDB)
-	roomService := room.NewRoomService(roomRepository)
+	roomCache := room.NewRedisRoomCache(redisClient)
+	roomService := room.NewRoomService(roomRepository, roomCache)
 	roomHandler := room.NewHandler(roomService)
 
 	router.Mount("/", reservationHandler.Routes())
@@ -192,6 +193,7 @@ func logStartup(cfg Config) {
 	fmt.Println("GET /")
 	fmt.Println("GET /healthz")
 	fmt.Println("POST /rooms/")
+	fmt.Println("GET /rooms/{id}")
 	fmt.Println("GET /reservations/{id}")
 	fmt.Println("POST /reservations/")
 	fmt.Println("POST /reservations/{id}/confirm")
