@@ -2,11 +2,13 @@ package reservation
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vladfc/go-redis/internal/room"
 )
 
 type ReservationService struct {
@@ -26,12 +28,31 @@ func (s *ReservationService) CreateReservation(ctx context.Context, req *CreateR
 		return nil, err
 	}
 
+	roomID := strings.TrimSpace(req.RoomID)
+
+	fetchedRoom, err := s.roomReader.GetRoomByID(ctx, &room.GetRoomByIDRequest{ID: roomID})
+	if err != nil {
+		if errors.Is(err, room.ErrRoomNotFound) {
+			return nil, fmt.Errorf("%w: room_id %s not found", ErrReservationRoomNotFound, roomID)
+		}
+
+		return nil, err
+	}
+	if fetchedRoom.Capacity < req.Quantity {
+		return nil, fmt.Errorf(
+			"%w: requested quantity %d exceeds room capacity %d",
+			ErrReservationCapacityExceeded,
+			req.Quantity,
+			fetchedRoom.Capacity,
+		)
+	}
+
 	now := time.Now().UTC()
 	expiresAt := now.Add(DefaultReservationTTL)
 
 	reservation := &Reservation{
 		ID:        uuid.NewString(),
-		RoomID:    strings.TrimSpace(req.RoomID),
+		RoomID:    roomID,
 		UserID:    strings.TrimSpace(req.UserID),
 		Quantity:  req.Quantity,
 		Status:    ReservationStatusPending,

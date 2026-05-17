@@ -113,7 +113,17 @@ func writeServiceError(w http.ResponseWriter, err error) {
 		return
 	}
 
+	if errors.Is(err, ErrReservationRoomNotFound) {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	if errors.Is(err, ErrReservationConflict) {
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+
+	if errors.Is(err, ErrReservationCapacityExceeded) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
