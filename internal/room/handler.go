@@ -22,6 +22,7 @@ func (h *Handler) Routes() http.Handler {
 	router := chi.NewRouter()
 
 	router.Route("/rooms", func(r chi.Router) {
+		r.Get("/{id}", h.GetRoomByID)
 		r.Post("/", h.CreateRoom)
 	})
 
@@ -52,6 +53,29 @@ func (h *Handler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, room)
+}
+
+func (h *Handler) GetRoomByID(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		_ = r.Body.Close()
+	}()
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "id is required")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	room, err := h.service.GetRoomByID(ctx, &GetRoomByIDRequest{ID: id})
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, room)
 }
 
 func writeServiceError(w http.ResponseWriter, err error) {

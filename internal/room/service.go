@@ -4,14 +4,21 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 )
+
+const defaultRoomCacheTTL = 5 * time.Minute
 
 type RoomService struct {
 	repository RoomRepository
+	cache      RoomCache
 }
 
-func NewRoomService(repository RoomRepository) *RoomService {
-	return &RoomService{repository: repository}
+func NewRoomService(repository RoomRepository, cache RoomCache) *RoomService {
+	return &RoomService{
+		repository: repository,
+		cache:      cache,
+	}
 }
 
 func (s *RoomService) CreateRoom(ctx context.Context, req *CreateRoomRequest) (*Room, error) {
@@ -31,6 +38,35 @@ func (s *RoomService) CreateRoom(ctx context.Context, req *CreateRoomRequest) (*
 	}
 
 	return room, nil
+}
+
+func (s *RoomService) GetRoomByID(ctx context.Context, req *GetRoomByIDRequest) (*Room, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w: request is required", ErrInvalidRoom)
+	}
+
+	id := strings.TrimSpace(req.ID)
+	if id == "" {
+		return nil, fmt.Errorf("%w: id is required", ErrInvalidRoom)
+	}
+
+	if s.cache != nil {
+		cachedRoom, err := s.cache.GetRoom(ctx, id)
+		if err == nil {
+			return cachedRoom, nil
+		}
+	}
+
+	resp, err := s.repository.GetRoomByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.cache != nil {
+		_ = s.cache.SetRoom(ctx, resp, defaultRoomCacheTTL)
+	}
+
+	return resp, nil
 }
 
 func validateRoomCreateRequest(req *CreateRoomRequest) error {
