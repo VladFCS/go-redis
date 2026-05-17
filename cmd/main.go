@@ -69,14 +69,14 @@ func main() {
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	reservationRepository := reservation.NewRedisReservationRepository(redisClient)
-	reservationService := reservation.NewReservationService(reservationRepository)
-	reservationHandler := reservation.NewHandler(reservationService)
-
 	roomRepository := room.NewPostgreSQLRepository(postgresDB)
 	roomCache := room.NewRedisRoomCache(redisClient)
 	roomService := room.NewRoomService(roomRepository, roomCache)
 	roomHandler := room.NewHandler(roomService)
+
+	reservationRepository := reservation.NewRedisReservationRepository(redisClient)
+	reservationService := reservation.NewReservationService(reservationRepository, roomService)
+	reservationHandler := reservation.NewHandler(reservationService)
 
 	router.Mount("/", reservationHandler.Routes())
 	router.Mount("/", roomHandler.Routes())

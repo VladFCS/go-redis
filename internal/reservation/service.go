@@ -11,13 +11,17 @@ import (
 
 type ReservationService struct {
 	repository ReservationRepository
+	roomReader RoomReader
 }
 
-func NewReservationService(repository ReservationRepository) *ReservationService {
-	return &ReservationService{repository: repository}
+func NewReservationService(repository ReservationRepository, roomReaderRepo RoomReader) *ReservationService {
+	return &ReservationService{
+		repository: repository,
+		roomReader: roomReaderRepo,
+	}
 }
 
-func (s *ReservationService) CreateReservation(ctx context.Context, req CreateReservationRequest) (*Reservation, error) {
+func (s *ReservationService) CreateReservation(ctx context.Context, req *CreateReservationRequest) (*Reservation, error) {
 	if err := validateReservationCreateRequest(req); err != nil {
 		return nil, err
 	}
@@ -59,7 +63,11 @@ func (s *ReservationService) ConfirmReservation(ctx context.Context, reservation
 	return s.repository.ConfirmReservation(ctx, reservationID)
 }
 
-func validateReservationCreateRequest(req CreateReservationRequest) error {
+func validateReservationCreateRequest(req *CreateReservationRequest) error {
+	if req == nil {
+		return fmt.Errorf("%w: request is required", ErrInvalidReservation)
+	}
+
 	if strings.TrimSpace(req.RoomID) == "" {
 		return fmt.Errorf("%w: room_id is required", ErrInvalidReservation)
 	}

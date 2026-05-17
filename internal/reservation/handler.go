@@ -47,7 +47,7 @@ func (h *Handler) CreateReservation(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	reservation, err := h.service.CreateReservation(ctx, request)
+	reservation, err := h.service.CreateReservation(ctx, &request)
 	if err != nil {
 		writeServiceError(w, err)
 		return
