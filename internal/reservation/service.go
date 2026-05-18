@@ -23,9 +23,27 @@ func NewReservationService(repository ReservationRepository, roomReaderRepo Room
 	}
 }
 
-func (s *ReservationService) CreateReservation(ctx context.Context, req *CreateReservationRequest) (*Reservation, error) {
+func (s *ReservationService) CreateReservation(ctx context.Context, req *CreateReservationRequest, idempotencyKey string) (reservation *Reservation, err error) {
 	if err := validateReservationCreateRequest(req); err != nil {
 		return nil, err
+	}
+
+	idempotencyKey = normalizeIdempotencyKey(idempotencyKey)
+
+	existingReservation, shouldCreate, err := s.beginCreateReservationIdempotency(ctx, idempotencyKey)
+	if err != nil {
+		return nil, err
+	}
+	if !shouldCreate {
+		return existingReservation, nil
+	}
+
+	if idempotencyKey != "" {
+		defer func() {
+			if err != nil {
+				_ = s.repository.DeleteReservationIdempotency(ctx, idempotencyKey)
+			}
+		}()
 	}
 
 	roomID := strings.TrimSpace(req.RoomID)
@@ -50,7 +68,7 @@ func (s *ReservationService) CreateReservation(ctx context.Context, req *CreateR
 	now := time.Now().UTC()
 	expiresAt := now.Add(DefaultReservationTTL)
 
-	reservation := &Reservation{
+	reservation = &Reservation{
 		ID:        uuid.NewString(),
 		RoomID:    roomID,
 		UserID:    strings.TrimSpace(req.UserID),
@@ -60,7 +78,7 @@ func (s *ReservationService) CreateReservation(ctx context.Context, req *CreateR
 		ExpiresAt: &expiresAt,
 	}
 
-	if err := s.repository.CreateReservation(ctx, reservation, DefaultReservationTTL); err != nil {
+	if err := s.repository.CreateReservation(ctx, reservation, DefaultReservationTTL, idempotencyKey); err != nil {
 		return nil, err
 	}
 

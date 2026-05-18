@@ -10,6 +10,8 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+const reservationIdempotencyKeyHeader = "Idempotency-Key"
+
 type Handler struct {
 	service *ReservationService
 }
@@ -48,7 +50,9 @@ func (h *Handler) CreateReservation(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	reservation, err := h.service.CreateReservation(ctx, &request)
+	idempotencyKey := r.Header.Get(reservationIdempotencyKeyHeader)
+
+	reservation, err := h.service.CreateReservation(ctx, &request, idempotencyKey)
 	if err != nil {
 		writeServiceError(w, err)
 		return
@@ -148,6 +152,11 @@ func writeServiceError(w http.ResponseWriter, err error) {
 	}
 
 	if errors.Is(err, ErrReservationCapacityExceeded) {
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+
+	if errors.Is(err, ErrReservationIdempotencyInProgress) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
