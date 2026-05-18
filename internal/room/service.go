@@ -2,7 +2,9 @@ package room
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 )
@@ -53,17 +55,29 @@ func (s *RoomService) GetRoomByID(ctx context.Context, req *GetRoomByIDRequest) 
 	if s.cache != nil {
 		cachedRoom, err := s.cache.GetRoom(ctx, id)
 		if err == nil {
+			log.Printf("room lookup cache hit room_id=%s", id)
 			return cachedRoom, nil
+		}
+
+		if errors.Is(err, errRoomCacheMiss) {
+			log.Printf("room lookup cache miss room_id=%s", id)
+		} else {
+			log.Printf("room lookup cache error room_id=%s err=%v", id, err)
 		}
 	}
 
+	log.Printf("room lookup fallback to repository room_id=%s", id)
 	resp, err := s.repository.GetRoomByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
 	if s.cache != nil {
-		_ = s.cache.SetRoom(ctx, resp, defaultRoomCacheTTL)
+		if err := s.cache.SetRoom(ctx, resp, defaultRoomCacheTTL); err != nil {
+			log.Printf("room cache write error room_id=%s err=%v", id, err)
+		} else {
+			log.Printf("room cache write-back room_id=%s ttl=%s", id, defaultRoomCacheTTL)
+		}
 	}
 
 	return resp, nil
