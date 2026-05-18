@@ -10,10 +10,13 @@ import (
 )
 
 type ReservationRepository interface {
-	CreateReservation(ctx context.Context, reservation *Reservation, ttl time.Duration) error
+	CreateReservation(ctx context.Context, reservation *Reservation, ttl time.Duration, idempotencyKey string) error
 	GetReservation(ctx context.Context, id string) (*Reservation, error)
 	ConfirmReservation(ctx context.Context, id string) (*Reservation, error)
 	CancelReservation(ctx context.Context, id string) (*Reservation, error)
+	TryBeginReservationIdempotency(ctx context.Context, key string, ttl time.Duration) (bool, error)
+	GetReservationIDByIdempotencyKey(ctx context.Context, key string) (string, error)
+	DeleteReservationIdempotency(ctx context.Context, key string) error
 }
 
 type RedisReservationRepository struct {
@@ -24,7 +27,7 @@ func NewRedisReservationRepository(client *redis.Client) *RedisReservationReposi
 	return &RedisReservationRepository{client: client}
 }
 
-func (r *RedisReservationRepository) CreateReservation(ctx context.Context, reservation *Reservation, ttl time.Duration) error {
+func (r *RedisReservationRepository) CreateReservation(ctx context.Context, reservation *Reservation, ttl time.Duration, idempotencyKey string) error {
 	key := reservationKey(reservation.ID)
 
 	pipe := r.client.TxPipeline()
@@ -42,9 +45,33 @@ func (r *RedisReservationRepository) CreateReservation(ctx context.Context, rese
 	}
 
 	pipe.Expire(ctx, key, ttl)
+	if idempotencyKey != "" {
+		pipe.Set(ctx, reservationIdempotencyKey(idempotencyKey), reservation.ID, ttl)
+	}
 
 	_, err := pipe.Exec(ctx)
 	return err
+}
+
+func (r *RedisReservationRepository) TryBeginReservationIdempotency(ctx context.Context, key string, ttl time.Duration) (bool, error) {
+	return r.client.SetNX(ctx, reservationIdempotencyKey(key), reservationIdempotencyPendingValue, ttl).Result()
+}
+
+func (r *RedisReservationRepository) GetReservationIDByIdempotencyKey(ctx context.Context, key string) (string, error) {
+	value, err := r.client.Get(ctx, reservationIdempotencyKey(key)).Result()
+	if err == redis.Nil {
+		return "", nil
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	return value, nil
+}
+
+func (r *RedisReservationRepository) DeleteReservationIdempotency(ctx context.Context, key string) error {
+	return r.client.Del(ctx, reservationIdempotencyKey(key)).Err()
 }
 
 func (r *RedisReservationRepository) GetReservation(ctx context.Context, id string) (*Reservation, error) {
