@@ -192,6 +192,7 @@ func logStartup(cfg Config) {
 	fmt.Println("Available routes:")
 	fmt.Println("GET /")
 	fmt.Println("GET /healthz")
+	fmt.Println("GET /rooms/")
 	fmt.Println("POST /rooms/")
 	fmt.Println("GET /rooms/{id}")
 	fmt.Println("GET /reservations/{id}")

@@ -69,6 +69,10 @@ func (s *RoomService) GetRoomByID(ctx context.Context, req *GetRoomByIDRequest) 
 	return resp, nil
 }
 
+func (s *RoomService) GetRooms(ctx context.Context, req *GetRoomsRequest) ([]*Room, error) {
+	return s.repository.GetRooms(ctx)
+}
+
 func validateRoomCreateRequest(req *CreateRoomRequest) error {
 	if req == nil {
 		return fmt.Errorf("%w: request is required", ErrInvalidRoom)
