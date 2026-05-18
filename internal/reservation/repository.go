@@ -37,7 +37,7 @@ func (r *RedisReservationRepository) CreateReservation(ctx context.Context, rese
 		"room_id":    reservation.RoomID,
 		"user_id":    reservation.UserID,
 		"quantity":   reservation.Quantity,
-		"status":     reservation.Status,
+		"status":     string(reservation.Status),
 		"created_at": reservation.CreatedAt.UTC().Format(time.RFC3339),
 	})
 	if reservation.ExpiresAt != nil {
@@ -76,8 +76,8 @@ func (r *RedisReservationRepository) DeleteReservationIdempotency(ctx context.Co
 
 func (r *RedisReservationRepository) GetReservation(ctx context.Context, id string) (*Reservation, error) {
 	key := reservationKey(id)
-	result, err := r.client.HGetAll(ctx, key).Result()
 
+	result, err := r.client.HGetAll(ctx, key).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,26 @@ func (r *RedisReservationRepository) GetReservation(ctx context.Context, id stri
 		return nil, ErrReservationNotFound
 	}
 
-	return reservationFromHash(result)
+	reservation, err := reservationFromHash(result)
+	if err != nil {
+		return nil, err
+	}
+
+	ttl, err := r.client.TTL(ctx, key).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	if ttl == -2*time.Second {
+		return nil, ErrReservationNotFound
+	}
+
+	if ttl > 0 {
+		ttlSeconds := ttlSecondsFromDuration(ttl)
+		reservation.TTLSeconds = &ttlSeconds
+	}
+
+	return reservation, nil
 }
 
 func (r *RedisReservationRepository) ConfirmReservation(ctx context.Context, id string) (*Reservation, error) {
@@ -115,7 +134,7 @@ func (r *RedisReservationRepository) ConfirmReservation(ctx context.Context, id 
 			}
 
 			_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
-				pipe.HSet(ctx, key, "status", ReservationStatusConfirmed)
+				pipe.HSet(ctx, key, "status", string(ReservationStatusConfirmed))
 				pipe.HDel(ctx, key, "expires_at")
 				pipe.Persist(ctx, key)
 				return nil
@@ -218,4 +237,8 @@ func reservationFromHash(result map[string]string) (*Reservation, error) {
 	}
 
 	return reservation, nil
+}
+
+func ttlSecondsFromDuration(ttl time.Duration) int64 {
+	return int64((ttl + time.Second - 1) / time.Second)
 }

@@ -12,13 +12,14 @@ const (
 )
 
 type Reservation struct {
-	ID        string            `json:"id"`
-	RoomID    string            `json:"room_id"`
-	UserID    string            `json:"user_id"`
-	Quantity  int               `json:"quantity"`
-	Status    ReservationStatus `json:"status"`
-	CreatedAt time.Time         `json:"created_at"`
-	ExpiresAt *time.Time        `json:"expires_at,omitempty"`
+	ID         string            `json:"id"`
+	RoomID     string            `json:"room_id"`
+	UserID     string            `json:"user_id"`
+	Quantity   int               `json:"quantity"`
+	Status     ReservationStatus `json:"status"`
+	CreatedAt  time.Time         `json:"created_at"`
+	ExpiresAt  *time.Time        `json:"expires_at,omitempty"`
+	TTLSeconds *int64            `json:"ttl_seconds,omitempty"`
 }
 
 type CreateReservationRequest struct {
