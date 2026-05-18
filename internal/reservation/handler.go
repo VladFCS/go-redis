@@ -25,6 +25,7 @@ func (h *Handler) Routes() http.Handler {
 		r.Get("/{id}", h.GetReservation)
 		r.Post("/", h.CreateReservation)
 		r.Post("/{id}/confirm", h.ConfirmReservation)
+		r.Delete("/{id}", h.CancelReservation)
 	})
 
 	return router
@@ -77,6 +78,29 @@ func (h *Handler) ConfirmReservation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, confirmReservation)
+}
+
+func (h *Handler) CancelReservation(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		_ = r.Body.Close()
+	}()
+
+	reservationID := chi.URLParam(r, "id")
+	if reservationID == "" {
+		writeError(w, http.StatusBadRequest, "reservation_id is required")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	canceledReservation, err := h.service.CancelReservation(ctx, reservationID)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, canceledReservation)
 }
 
 func (h *Handler) GetReservation(w http.ResponseWriter, r *http.Request) {

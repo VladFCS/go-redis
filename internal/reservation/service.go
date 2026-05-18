@@ -84,6 +84,15 @@ func (s *ReservationService) ConfirmReservation(ctx context.Context, reservation
 	return s.repository.ConfirmReservation(ctx, reservationID)
 }
 
+func (s *ReservationService) CancelReservation(ctx context.Context, reservationID string) (*Reservation, error) {
+	reservationID = strings.TrimSpace(reservationID)
+	if reservationID == "" {
+		return nil, fmt.Errorf("%w: reservation_id is required", ErrInvalidReservation)
+	}
+
+	return s.repository.CancelReservation(ctx, reservationID)
+}
+
 func validateReservationCreateRequest(req *CreateReservationRequest) error {
 	if req == nil {
 		return fmt.Errorf("%w: request is required", ErrInvalidReservation)

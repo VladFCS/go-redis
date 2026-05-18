@@ -13,6 +13,7 @@ type ReservationRepository interface {
 	CreateReservation(ctx context.Context, reservation *Reservation, ttl time.Duration) error
 	GetReservation(ctx context.Context, id string) (*Reservation, error)
 	ConfirmReservation(ctx context.Context, id string) (*Reservation, error)
+	CancelReservation(ctx context.Context, id string) (*Reservation, error)
 }
 
 type RedisReservationRepository struct {
@@ -107,6 +108,53 @@ func (r *RedisReservationRepository) ConfirmReservation(ctx context.Context, id 
 		}
 
 		return confirmedReservation, err
+	}
+
+	return nil, redis.TxFailedErr
+}
+
+func (r *RedisReservationRepository) CancelReservation(ctx context.Context, id string) (*Reservation, error) {
+	key := reservationKey(id)
+
+	for range 3 {
+		var canceledReservation *Reservation
+
+		err := r.client.Watch(ctx, func(tx *redis.Tx) error {
+			result, err := tx.HGetAll(ctx, key).Result()
+			if err != nil {
+				return err
+			}
+
+			if len(result) == 0 {
+				return ErrReservationNotFound
+			}
+
+			reservation, err := reservationFromHash(result)
+			if err != nil {
+				return err
+			}
+
+			if reservation.Status != ReservationStatusPending {
+				return fmt.Errorf("%w: cannot cancel reservation with status %s", ErrReservationConflict, reservation.Status)
+			}
+
+			_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
+				pipe.Del(ctx, key)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+
+			canceledReservation = reservation
+
+			return nil
+		}, key)
+		if err == redis.TxFailedErr {
+			continue
+		}
+
+		return canceledReservation, err
 	}
 
 	return nil, redis.TxFailedErr

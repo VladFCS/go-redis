@@ -198,4 +198,5 @@ func logStartup(cfg Config) {
 	fmt.Println("GET /reservations/{id}")
 	fmt.Println("POST /reservations/")
 	fmt.Println("POST /reservations/{id}/confirm")
+	fmt.Println("DELETE /reservations/{id}")
 }
